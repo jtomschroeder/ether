@@ -1,7 +1,7 @@
 
 pub mod loopback {
     use std::ops;
-    use interconnect::parser;
+    use packet::parser;
 
     pub struct Packet<'a>(&'a [u8]);
 
@@ -47,7 +47,7 @@ pub mod loopback {
 pub mod ethernet {
     use std::ops;
     use std::fmt;
-    use interconnect::parser;
+    use packet::parser;
 
     pub struct Frame<'a>(&'a [u8]);
 

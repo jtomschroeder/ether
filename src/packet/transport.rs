@@ -2,7 +2,7 @@
 pub mod tcp {
     use std::ops;
     use std::fmt;
-    use interconnect::parser;
+    use packet::parser;
 
     pub struct Packet<'a>(&'a [u8]);
 

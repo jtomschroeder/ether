@@ -2,7 +2,6 @@
 extern crate ether;
 
 use ether::pcap;
-use ether::interconnect as ic;
 
 fn run() -> std::io::Result<()> {
     use std::fs::File;
@@ -16,8 +15,7 @@ fn run() -> std::io::Result<()> {
     match pcap.parse().unwrap() {
         (pcap::Header { network: pcap::Link::Ethernet, .. }, records) => {
             for pcap::Record { payload, .. } in records {
-                let ethernet = ic::datalink::ethernet::Frame::new(payload);
-                println!("ethernet: {:?}", ethernet);
+                println!("ethernet: {:?}", payload);
             }
         }
         _ => {}

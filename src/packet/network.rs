@@ -4,7 +4,7 @@ pub mod ipv4 {
     use std::fmt;
     use std::net::Ipv4Addr;
 
-    use interconnect::parser;
+    use packet::parser;
 
     pub struct Packet<'a>(&'a [u8]);
 
