@@ -1,16 +1,16 @@
 
 use nom::IResult;
 
-// PCAP Header
-//
-// * magic number (0xA1B23C4D)
-// * major version number
-// * minor version number
-// * GMT to local correction
-// * accuracy of timestamps
-// * max length of captured packets, in octets
-// * data link type
-//
+/// PCAP Header
+///
+/// * magic number (0xA1B23C4D)
+/// * major version number
+/// * minor version number
+/// * GMT to local correction
+/// * accuracy of timestamps
+/// * max length of captured packets, in octets
+/// * data link type
+///
 #[derive(Debug)]
 pub struct Header {
     pub magic_number: u32,
@@ -22,7 +22,7 @@ pub struct Header {
     pub network: Link,
 }
 
-// http://www.tcpdump.org/linktypes.html
+/// Link types as defined in http://www.tcpdump.org/linktypes.html
 #[derive(Debug)]
 pub enum Link {
     Null,
@@ -39,10 +39,12 @@ impl From<i32> for Link {
     }
 }
 
-// timestamp seconds
-// timestamp nanoseconds
-// number of octets of packet saved in file
-// actual length of packet
+/// Record entry in a packet capture
+///
+/// * timestamp seconds
+/// * timestamp nanoseconds
+/// * number of octets of packet saved in file
+/// * actual length of packet
 #[derive(Debug)]
 pub struct Record<'a> {
     pub ts_sec: u32,
@@ -52,6 +54,7 @@ pub struct Record<'a> {
     pub payload: &'a [u8],
 }
 
+/// PacketCapture: container for pcap byte-stream
 pub struct PacketCapture {
     capture: Vec<u8>,
 }
