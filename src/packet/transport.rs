@@ -2,10 +2,11 @@
 pub mod tcp {
     use std::ops;
     use std::fmt;
-    use packet::parser;
+    use utility::{parser, Bitfield};
 
     pub struct Packet<'a>(&'a [u8]);
 
+    #[doc(hidden)]
     impl<'a> ops::Deref for Packet<'a> {
         type Target = &'a [u8];
         fn deref(&self) -> &Self::Target {
@@ -124,23 +125,5 @@ pub mod tcp {
         RST,
         SYN,
         FIN,
-    }
-
-    #[derive(Debug)]
-    struct Bitfield {
-        value: u64,
-    }
-
-    use num::NumCast;
-
-    impl Bitfield {
-        fn new<N: NumCast>(value: N) -> Self {
-            Bitfield { value: NumCast::from(value).unwrap() }
-        }
-
-        fn has(&self, offset: usize) -> bool {
-            let mask = 1 << offset;
-            self.value & mask == mask
-        }
     }
 }
