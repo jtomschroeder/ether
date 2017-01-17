@@ -1,9 +1,8 @@
 
-extern crate futures;
 extern crate ether;
 
-use futures::stream::Stream;
 use ether::tap;
+use ether::tap::Stream;
 use ether::packet::{datalink, network, transport};
 
 fn main() {
