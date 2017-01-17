@@ -1,0 +1,11 @@
+[package]
+name = "ether"
+version = "0.0.1"
+authors = ["Tom Schroeder <j.tom.schroeder@gmail.com>"]
+
+[dependencies]
+num = "0.1"
+libc = "0.2"
+glob = "0.2"
+futures = "0.1"
+nom = "2.0"
