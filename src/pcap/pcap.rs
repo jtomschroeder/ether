@@ -1,48 +1,52 @@
 
+use nom;
 use nom::IResult;
 
-// PCAP Header
-//
-// * magic number (0xA1B23C4D)
-// * major version number
-// * minor version number
-// * GMT to local correction
-// * accuracy of timestamps
-// * max length of captured packets, in octets
-// * data link type
-//
+/// PCAP Header
+///
+/// * magic number (0xA1B23C4D)
+/// * major version number
+/// * minor version number
+/// * GMT to local correction
+/// * accuracy of timestamps
+/// * max length of captured packets, in octets
+/// * data link type
+///
 #[derive(Debug)]
 pub struct Header {
     pub magic_number: u32,
-    pub version_major: i16,
-    pub version_minor: i16,
+    pub version_major: u16,
+    pub version_minor: u16,
     pub thiszone: i32,
-    pub sigfigs: i32,
-    pub snaplen: i32,
+    pub sigfigs: u32,
+    pub snaplen: u32,
     pub network: Link,
 }
 
-// http://www.tcpdump.org/linktypes.html
+/// Link types as defined in http://www.tcpdump.org/linktypes.html
 #[derive(Debug)]
 pub enum Link {
     Null,
     Ethernet,
+    Unknown(u32),
 }
 
-impl From<i32> for Link {
-    fn from(link: i32) -> Self {
+impl From<u32> for Link {
+    fn from(link: u32) -> Self {
         match link {
             0 => Link::Null,
             1 => Link::Ethernet,
-            _ => panic!("Unsupported Link!"),
+            otherwise => Link::Unknown(otherwise),
         }
     }
 }
 
-// timestamp seconds
-// timestamp nanoseconds
-// number of octets of packet saved in file
-// actual length of packet
+/// Record entry in a packet capture
+///
+/// * timestamp seconds
+/// * timestamp nanoseconds
+/// * number of octets of packet saved in file
+/// * actual length of packet
 #[derive(Debug)]
 pub struct Record<'a> {
     pub ts_sec: u32,
@@ -52,6 +56,7 @@ pub struct Record<'a> {
     pub payload: &'a [u8],
 }
 
+/// PacketCapture: container for pcap byte-stream
 pub struct PacketCapture {
     capture: Vec<u8>,
 }
@@ -69,24 +74,18 @@ impl Header {
         use nom::*;
 
         do_parse!(data,
-            magic_number: le_u32 >>
-            version_major: le_i16 >>
-            version_minor: le_i16 >>
-            thiszone: le_i32 >>
-            sigfigs: le_i32 >>
-            snaplen: le_i32 >>
-            network: le_i32 >>
-
-            (Header {
-               magic_number: magic_number,
-               version_major: version_major,
-               version_minor: version_minor,
-               thiszone: thiszone,
-               sigfigs: sigfigs,
-               snaplen: snaplen,
-               network: Link::from(network),
-            })
-        )
+                  magic_number: le_u32 >> version_major: le_u16 >> version_minor: le_u16 >>
+                  thiszone: le_i32 >>
+                  sigfigs: le_u32 >> snaplen: le_u32 >> network: le_u32 >>
+                  (Header {
+                      magic_number: magic_number,
+                      version_major: version_major,
+                      version_minor: version_minor,
+                      thiszone: thiszone,
+                      sigfigs: sigfigs,
+                      snaplen: snaplen,
+                      network: Link::from(network),
+                  }))
     }
 }
 
@@ -112,8 +111,12 @@ impl<'a> Record<'a> {
     }
 }
 
+/// PCAP parse error
+#[derive(Debug)]
+pub struct ParseError(nom::IError);
+
 impl PacketCapture {
-    pub fn parse(&self) -> Option<(Header, Vec<Record>)> {
+    pub fn parse(&self) -> Result<(Header, Vec<Record>), ParseError> {
         fn parse<'a>(data: &'a [u8]) -> IResult<&[u8], (Header, Vec<Record<'a>>)> {
             do_parse!(data,
                 header: call!(Header::parse) >>
@@ -122,6 +125,8 @@ impl PacketCapture {
             )
         }
 
-        parse(&self.capture).to_result().ok()
+        parse(&self.capture)
+            .to_full_result()
+            .map_err(|err| ParseError(err))
     }
 }

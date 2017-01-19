@@ -1,10 +1,9 @@
 
-extern crate libc;
-extern crate glob;
-extern crate futures;
+//! Tap into a network interface to view/inject real-time traffic
 
 #[macro_use]
 mod bindings;
 mod tap;
 
 pub use self::tap::Tap;
+pub use futures::stream::Stream;

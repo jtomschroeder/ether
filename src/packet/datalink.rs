@@ -1,10 +1,11 @@
 
 pub mod loopback {
     use std::ops;
-    use interconnect::parser;
+    use utility::parser;
 
     pub struct Packet<'a>(&'a [u8]);
 
+    #[doc(hidden)]
     impl<'a> ops::Deref for Packet<'a> {
         type Target = &'a [u8];
         fn deref(&self) -> &Self::Target {
@@ -47,10 +48,11 @@ pub mod loopback {
 pub mod ethernet {
     use std::ops;
     use std::fmt;
-    use interconnect::parser;
+    use utility::parser;
 
     pub struct Frame<'a>(&'a [u8]);
 
+    #[doc(hidden)]
     impl<'a> ops::Deref for Frame<'a> {
         type Target = &'a [u8];
         fn deref(&self) -> &Self::Target {

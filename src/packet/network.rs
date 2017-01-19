@@ -4,10 +4,11 @@ pub mod ipv4 {
     use std::fmt;
     use std::net::Ipv4Addr;
 
-    use interconnect::parser;
+    use utility::parser;
 
     pub struct Packet<'a>(&'a [u8]);
 
+    #[doc(hidden)]
     impl<'a> ops::Deref for Packet<'a> {
         type Target = &'a [u8];
         fn deref(&self) -> &Self::Target {
@@ -97,7 +98,4 @@ pub mod ipv4 {
             }
         }
     }
-
-    #[derive(Debug, PartialEq)]
-    pub struct Address(u8, u8, u8, u8);
 }

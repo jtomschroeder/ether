@@ -1,25 +1,20 @@
 
-extern crate futures;
 extern crate ether;
 
-use futures::stream::Stream;
 use ether::tap;
-use ether::interconnect as ic;
+use ether::tap::Stream;
+use ether::packet::{datalink, network, transport};
 
 fn main() {
     let mut tap = tap::Tap::new("en0").unwrap();
-    // let mut tap = tap::Tap::new("lo0").unwrap();
-
     for packet in tap.stream().wait().filter_map(|p| p.ok()) {
-        let ethernet = ic::datalink::ethernet::Frame::new(&packet);
-        // println!("{:?}", ethernet);
+        let ethernet = datalink::ethernet::Frame::new(&packet);
 
-        if ethernet.ethertype() == ic::datalink::ethernet::EtherType::IPv4 {
-            let ip = ic::network::ipv4::Packet::new(ethernet.payload());
-            // println!("{:?}", ip);
+        if ethernet.ethertype() == datalink::ethernet::EtherType::IPv4 {
+            let ip = network::ipv4::Packet::new(ethernet.payload());
 
-            if ip.protocol() == ic::network::ipv4::Protocol::TCP {
-                let tcp = ic::transport::tcp::Packet::new(ip.payload());
+            if ip.protocol() == network::ipv4::Protocol::TCP {
+                let tcp = transport::tcp::Packet::new(ip.payload());
                 println!("{:#?}", tcp);
             }
         }
