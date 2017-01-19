@@ -7,15 +7,11 @@ use ether::packet::{datalink, network, transport};
 
 fn main() {
     let mut tap = tap::Tap::new("en0").unwrap();
-    // let mut tap = tap::Tap::new("lo0").unwrap();
-
     for packet in tap.stream().wait().filter_map(|p| p.ok()) {
         let ethernet = datalink::ethernet::Frame::new(&packet);
-        // println!("{:?}", ethernet);
 
         if ethernet.ethertype() == datalink::ethernet::EtherType::IPv4 {
             let ip = network::ipv4::Packet::new(ethernet.payload());
-            // println!("{:?}", ip);
 
             if ip.protocol() == network::ipv4::Protocol::TCP {
                 let tcp = transport::tcp::Packet::new(ip.payload());
