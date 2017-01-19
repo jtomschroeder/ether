@@ -30,11 +30,10 @@ extern crate ether;
 Here's a simple example that prints all packets received on interface `en0`:
 
 ```rust
-extern crate futures;
 extern crate ether;
 
-use futures::stream::Stream;
 use ether::tap;
+use ether::tap::Stream;
 
 fn main() {
     let mut tap = tap::Tap::new("en0").unwrap();
