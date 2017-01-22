@@ -66,6 +66,7 @@ impl<'a> fmt::Debug for Packet<'a> {
             .field("source", &self.source())
             .field("destination", &self.destination())
             // Options
+            // .field("payload", &self.payload())
             .finish()
     }
 }

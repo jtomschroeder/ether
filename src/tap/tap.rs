@@ -131,26 +131,25 @@ impl Tap {
             {
                 use super::bindings::bpf::*;
 
-                let ethertype_ip = 0x0800;
-                let ipproto_tcp = 6;
-
                 // Allow all!
-                // let instructions = vec![bpf::BPF_STMT(bpf::BPF_RET + bpf::BPF_K, std::u32::MAX)];
+                let instructions = vec![bpf::BPF_STMT(bpf::BPF_RET + bpf::BPF_K, std::u32::MAX)];
 
                 // Only IPv4/TCP
-                let instructions = vec![BPF_STMT(BPF_LD + BPF_H + BPF_ABS, 12),
-                                        BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, ethertype_ip, 0, 3),
-                                        BPF_STMT(BPF_LD + BPF_B + BPF_ABS, 23),
-                                        BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, ipproto_tcp, 0, 1),
-                                        BPF_STMT(BPF_RET + BPF_K, std::u32::MAX),
-                                        BPF_STMT(BPF_RET + BPF_K, 0)];
+                // let ethertype_ip = 0x0800;
+                // let ipproto_tcp = 6;
+                // let instructions = vec![BPF_STMT(BPF_LD + BPF_H + BPF_ABS, 12),
+                //                         BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, ethertype_ip, 0, 3),
+                //                         BPF_STMT(BPF_LD + BPF_B + BPF_ABS, 23),
+                //                         BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, ipproto_tcp, 0, 1),
+                //                         BPF_STMT(BPF_RET + BPF_K, std::u32::MAX),
+                //                         BPF_STMT(BPF_RET + BPF_K, 0)];
 
-                let program = bpf_program {
-                    bf_len: instructions.len() as u32,
-                    bf_insns: instructions.as_ptr(),
-                };
-
-                ioctl!(fd, BIOCSETF, &program);
+                ioctl!(fd,
+                       BIOCSETF,
+                       &bpf_program {
+                           bf_len: instructions.len() as u32,
+                           bf_insns: instructions.as_ptr(),
+                       });
             }
 
             // Enable nonblocking

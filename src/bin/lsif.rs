@@ -13,8 +13,7 @@ fn main() {
     unsafe {
         let mut ifap: *mut libc::ifaddrs = std::mem::uninitialized();
 
-        let res = libc::getifaddrs(&mut ifap);
-        if res == -1 {
+        if libc::getifaddrs(&mut ifap) == -1 {
             println!("{:?}", std::io::Error::last_os_error());
             return;
         }
