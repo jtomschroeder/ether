@@ -61,7 +61,6 @@ impl<'a> fmt::Debug for Packet<'a> {
 pub struct Builder {
     class: u8,
     code: u8,
-    // checksum: u16,
     identifier: u16,
     sequence: u16,
 }
@@ -73,12 +72,28 @@ fn nibbles(num: u16) -> (u8, u8) {
 impl Builder {
     pub fn new() -> Self {
         Builder {
-            class: 8,
+            class: 0,
             code: 0,
-            // checksum: 0,
-            identifier: 51123,
-            sequence: 1,
+            identifier: 0,
+            sequence: 0,
         }
+    }
+
+    pub fn class(mut self, class: u8) -> Self {
+        self.class = class;
+        self
+    }
+    pub fn code(mut self, code: u8) -> Self {
+        self.code = code;
+        self
+    }
+    pub fn identifier(mut self, identifier: u16) -> Self {
+        self.identifier = identifier;
+        self
+    }
+    pub fn sequence(mut self, sequence: u16) -> Self {
+        self.sequence = sequence;
+        self
     }
 
     pub fn build(&self, payload: &[u8]) -> Vec<u8> {
@@ -88,7 +103,7 @@ impl Builder {
         let mut frame = vec![self.class, self.code, 0, 0, id.0, id.1, seq.0, seq.1];
         frame.extend(payload);
 
-        let checksum = nibbles(checksum(&frame, 1));
+        let checksum = nibbles(checksum(&frame));
         frame[2] = checksum.0;
         frame[3] = checksum.1;
 
@@ -100,10 +115,9 @@ impl Builder {
 
 use std::slice;
 
-/// Calculates a checksum. Used by ipv4 and icmp. The two bytes starting at `skipword * 2` will be
-/// ignored. Supposed to be the checksum field, which is regarded as zero during calculation.
-pub fn checksum(data: &[u8], skipword: usize) -> u16 {
-    let sum = sum_be_words(data, skipword);
+/// Calculates a checksum. Used by ipv4 and icmp.
+pub fn checksum(data: &[u8]) -> u16 {
+    let sum = sum_be_words(data);
     finalize_checksum(sum)
 }
 
@@ -114,24 +128,19 @@ fn finalize_checksum(mut sum: u32) -> u16 {
     !sum as u16
 }
 
-/// Sum all words (16 bit chunks) in the given data. The word at word offset
-/// `skipword` will be skipped. Each word is treated as big endian.
-fn sum_be_words(data: &[u8], skipword: usize) -> u32 {
+/// Sum all words (16 bit chunks) in the given data. Each word is treated as big endian.
+fn sum_be_words(data: &[u8]) -> u32 {
     let len = data.len();
     let wdata: &[u16] = unsafe { slice::from_raw_parts(data.as_ptr() as *const u16, len / 2) };
-    assert!(skipword <= wdata.len());
 
     let mut sum = 0u32;
+
     let mut i = 0;
-    while i < skipword {
-        sum += u16::from_be(unsafe { *wdata.get_unchecked(i) }) as u32;
-        i += 1;
-    }
-    i += 1;
     while i < wdata.len() {
         sum += u16::from_be(unsafe { *wdata.get_unchecked(i) }) as u32;
         i += 1;
     }
+
     // If the length is odd, make sure to checksum the final byte
     if len & 1 != 0 {
         sum += (unsafe { *data.get_unchecked(len - 1) } as u32) << 8;
