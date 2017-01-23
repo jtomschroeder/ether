@@ -163,7 +163,7 @@ struct bpf_version {
 }
 
 const SIZEOF_TIMEVAL: c_ulong = 16;
-const SIZEOF_IFREQ: c_ulong = 32;
+pub const SIZEOF_IFREQ: c_ulong = 32;
 const SIZEOF_UINT: c_ulong = 4;
 const SIZEOF_INT32: c_ulong = 4;
 const SIZEOF_BPF_PROGRAM: c_ulong = 16;

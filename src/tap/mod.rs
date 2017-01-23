@@ -7,3 +7,5 @@ mod tap;
 
 pub use self::tap::Tap;
 pub use futures::stream::Stream;
+
+pub use self::bindings::bpf;

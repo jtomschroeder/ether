@@ -1,4 +1,11 @@
 
 # Notes
 
-- `nids` TCP subsystem is only 'unique' code: remove rest and past parsed TCP data directly to that subsystem; later, translate to `rust`
+# TODO
+
+- break `BPF program` functionality out in Tap
+- create *builders* for packet/frame formats of different protocols
+- `ping`
+- `traceroute`
+- `net-info`
+- Allow the *replay* of TCP streams from tapped traffic or pcap's (a la `nids`)
