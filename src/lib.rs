@@ -35,6 +35,9 @@ extern crate futures;
 #[macro_use]
 extern crate nom;
 
+#[macro_use]
+extern crate nexus;
+
 mod utility;
 
 pub mod packet;

@@ -3,6 +3,9 @@ extern crate ether;
 extern crate libc;
 extern crate itertools;
 
+use std::io;
+use std::ptr;
+use std::time::Duration;
 use itertools::Itertools;
 
 use ether::packet::network::{ipv4, icmp};
@@ -14,6 +17,38 @@ const IP_MAXPACKET: usize = 65535; // maximum packet size
 // from /usr/include/netinet/ip_icmp.h
 // ICMP_ECHOREPLY          0
 // ICMP_ECHO               8
+
+fn pselect(nfds: libc::c_int,
+           readfds: Option<&mut libc::fd_set>,
+           writefds: Option<&mut libc::fd_set>,
+           timeout: Option<Duration>)
+           -> io::Result<()> {
+    let timeout = timeout.map(|d| {
+        libc::timespec {
+            tv_sec: d.as_secs() as libc::time_t,
+            tv_nsec: d.subsec_nanos() as libc::c_long,
+        }
+    });
+
+    let ret = unsafe {
+        libc::pselect(nfds + 1,
+                      readfds.map(|to| to as *mut libc::fd_set)
+                          .unwrap_or(ptr::null_mut()),
+                      writefds.map(|to| to as *mut libc::fd_set)
+                          .unwrap_or(ptr::null_mut()),
+                      ptr::null_mut(),
+                      timeout.as_ref()
+                          .map(|to| to as *const libc::timespec)
+                          .unwrap_or(ptr::null()),
+                      ptr::null())
+    };
+
+    match ret {
+        -1 => Err(io::Error::last_os_error()), // Error occured!
+        0 => Err(io::Error::new(io::ErrorKind::TimedOut, "Timed out")),
+        _ => Ok(()),
+    }
+}
 
 fn main() {
     let packet = icmp::Builder::new()

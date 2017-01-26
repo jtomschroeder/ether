@@ -15,66 +15,6 @@ pub struct ifreq {
     pub ifru_addr: libc::sockaddr, // NOTE: should be a `union`
 }
 
-// From /usr/include/fcntl.h
-
-macro_rules! fcntl {
-    ( $fd:expr, $request:expr, $( $arg:expr ),* ) => {
-        if unsafe { ::libc::fcntl($fd, $request, $( $arg, )*) } == -1 {
-            return Err(::std::io::Error::last_os_error());
-        }
-    };
-}
-
-// From /usr/include/sys/ioctl.h
-
-extern "C" {
-    pub fn ioctl(d: c_int, request: c_ulong, ...) -> c_int;
-}
-
-macro_rules! ioctl {
-    ( $fd:expr, $request:expr, $( $arg:expr ),* ) => {
-        if unsafe { $crate::tap::bindings::bpf::ioctl($fd, $request, $( $arg, )* ) } == -1 {
-            return Err(::std::io::Error::last_os_error());
-        }
-    };
-}
-
-// From /usr/include/sys/ioccom.h
-
-// Ioctl's have the command encoded in the lower word, and the size of
-// any in or out parameters in the upper word.  The high 3 bits of the
-// upper word are used to encode the in/out status of the parameter.
-const IOCPARM_MASK: c_ulong = 0x1fff; /* parameter length, at most 13 bits */
-
-const IOC_VOID: c_ulong = 0x20000000; // no parameters
-const IOC_OUT: c_ulong = 0x40000000; // copy parameters out
-const IOC_IN: c_ulong = 0x80000000; // copy parameters in
-const IOC_INOUT: c_ulong = IOC_IN | IOC_OUT; // copy paramters in and out
-const IOC_DIRMASK: c_ulong = 0xe0000000; // mask for IN/OUT/VOID
-
-macro_rules! ioc {
-    ($inout:expr, $group:expr, $num:expr, $len:expr) => (
-        $inout | (($len & IOCPARM_MASK) << 16) | (($group) << 8) | ($num)
-    )
-}
-
-macro_rules! io {
-    ($g:expr, $n:expr) => (ioc!(IOC_VOID, $g as c_ulong, $n, 0))
-}
-
-macro_rules! ior {
-    ($g:expr, $n:expr, $t:expr) => (ioc!(IOC_OUT, $g as c_ulong, $n, $t))
-}
-
-
-macro_rules! iow {
-    ($g:expr, $n:expr, $t:expr) => (ioc!(IOC_IN, $g as c_ulong, $n, $t))
-}
-
-macro_rules! iowr {
-    ($g:expr, $n:expr, $t:expr) => (ioc!(IOC_INOUT, $g as c_ulong, $n, $t))
-}
-
 // From /usr/include/net/bpf.h
 
 pub struct bpf_program {
@@ -163,7 +103,7 @@ struct bpf_version {
 }
 
 const SIZEOF_TIMEVAL: c_ulong = 16;
-pub const SIZEOF_IFREQ: c_ulong = 32;
+const SIZEOF_IFREQ: c_ulong = 32;
 const SIZEOF_UINT: c_ulong = 4;
 const SIZEOF_INT32: c_ulong = 4;
 const SIZEOF_BPF_PROGRAM: c_ulong = 16;
