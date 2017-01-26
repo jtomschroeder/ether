@@ -9,7 +9,7 @@ use ether::packet::network::{ipv4, icmp};
 
 // from /usr/include/netinet/in.h
 const IPPROTO_ICMP: libc::c_int = 1;
-const IP_MAXPACKET: libc::c_int = 65535; // maximum packet size
+const IP_MAXPACKET: usize = 65535; // maximum packet size
 
 // from /usr/include/netinet/ip_icmp.h
 // ICMP_ECHOREPLY          0
@@ -51,6 +51,36 @@ fn main() {
         if i < 0 {
             println!("ERROR! [sendto] {}", std::io::Error::last_os_error());
             return;
+        }
+
+        {
+            let buffer = vec![0u8; IP_MAXPACKET];
+            let addrlen = 16u32;
+            let recvd = match recvfrom(s,
+                                       mem::transmute(buffer.as_ptr()),
+                                       buffer.len(),
+                                       0,
+                                       mem::transmute(&whereto),
+                                       mem::transmute(&addrlen)) {
+                -1 => {
+                    println!("ERROR! [recvfrom] {}", std::io::Error::last_os_error());
+                    return;
+                }
+                otherwise => otherwise as usize,
+            };
+
+            println!("{:?}", recvd);
+
+            let packet = &buffer[0..recvd];
+            println!("{:?}", packet);
+
+            let packet = ipv4::Packet::new(packet);
+            println!("{:?}", packet);
+
+            let hlen = (packet.ihl() << 2) as usize;
+            let packet = &buffer[hlen..recvd];
+            let packet = icmp::Packet::new(packet);
+            println!("{:?}", packet);
         }
 
         close(s);
