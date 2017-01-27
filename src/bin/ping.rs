@@ -4,9 +4,7 @@ extern crate libc;
 extern crate itertools;
 
 use std::io;
-use std::ptr;
-use std::time::Duration;
-use itertools::Itertools;
+use std::mem;
 
 use ether::packet::network::{ipv4, icmp};
 
@@ -24,15 +22,12 @@ extern crate futures;
 extern crate nix;
 
 use std::os::unix::io::RawFd;
+use nix::fcntl::{fcntl, FcntlArg, O_NONBLOCK};
+
 use mio::Evented;
 use mio::unix::EventedFd;
-
-use tokio_core::reactor::Handle;
-use tokio_core::reactor::PollEvented;
+use tokio_core::reactor::{Core, Handle, PollEvented};
 use futures::{Stream, Poll, Async};
-use tokio_core::reactor::Core;
-
-use nix::fcntl::{fcntl, FcntlArg, O_NONBLOCK};
 
 #[derive(Debug)]
 pub struct EventedFile {
@@ -78,7 +73,7 @@ impl RawSocketStream {
 }
 
 fn destination() -> libc::sockaddr_in {
-    let mut whereto: libc::sockaddr_in = unsafe { std::mem::zeroed() }; // who to ping
+    let mut whereto: libc::sockaddr_in = unsafe { mem::zeroed() }; // who to ping
     whereto.sin_family = libc::AF_INET as u8;
     whereto.sin_len = 16; // sizeof sockaddr_in
     whereto.sin_addr.s_addr = 0xEED83AD8; // google.com @ 216.58.216.238 (little endian)
@@ -101,25 +96,24 @@ impl Stream for RawSocketStream {
 
                 let recvd = unsafe {
                     match libc::recvfrom(self.fd,
-                                         std::mem::transmute(buffer.as_ptr()),
+                                         mem::transmute(buffer.as_ptr()),
                                          buffer.len(),
                                          0,
-                                         std::mem::transmute(&whereto),
-                                         std::mem::transmute(&addrlen)) {
+                                         mem::transmute(&whereto),
+                                         mem::transmute(&addrlen)) {
                         -1 => return Err(io::Error::last_os_error()),
                         otherwise => otherwise as usize,
                     }
                 };
 
                 Async::Ready(Some(buffer[..recvd].to_vec()))
-                // Async::Ready(None)
             }
             Async::NotReady => Async::NotReady,
         })
     }
 }
 
-fn main() {
+fn run() -> io::Result<()> {
     let packet = icmp::Builder::new()
         .class(8)
         .code(0)
@@ -133,8 +127,7 @@ fn main() {
 
         let s = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
         if s < 0 {
-            println!("ERROR! [socket] {}", std::io::Error::last_os_error());
-            return;
+            return Err(io::Error::last_os_error());
         }
 
         let whereto = destination();
@@ -150,37 +143,40 @@ fn main() {
                        mem::transmute(&whereto),
                        16);
         if i < 0 {
-            println!("ERROR! [sendto] {}", std::io::Error::last_os_error());
-            return;
+            return Err(io::Error::last_os_error());
         }
 
         s
     };
 
-    let mut core = Core::new().expect("Core::new");
+    let mut core = try!(Core::new());
     let handle = core.handle();
 
-    fcntl(s, FcntlArg::F_SETFL(O_NONBLOCK));
+    try!(fcntl(s, FcntlArg::F_SETFL(O_NONBLOCK)));
 
-    let stream = RawSocketStream::new(EventedFile { fd: s }, &handle)
-        .expect("RawSocketStream::new");
+    let stream = try!(RawSocketStream::new(EventedFile { fd: s }, &handle));
 
-    core.run(stream.take(1).for_each(|buffer| {
-            println!("{:?}", buffer);
+    try!(core.run(stream.take(1).for_each(|buffer| {
+        println!("{:?}", buffer);
 
-            let packet = ipv4::Packet::new(&buffer);
-            println!("{:?}", packet);
+        let packet = ipv4::Packet::new(&buffer);
+        println!("{:?}", packet);
 
-            let hlen = (packet.ihl() << 2) as usize;
-            let packet = &buffer[hlen..];
-            let packet = icmp::Packet::new(packet);
-            println!("{:?}", packet);
+        let hlen = (packet.ihl() << 2) as usize;
+        let packet = &buffer[hlen..];
+        let packet = icmp::Packet::new(packet);
+        println!("{:?}", packet);
 
-            Ok(())
-        }))
-        .unwrap();
+        Ok(())
+    })));
 
     unsafe {
         libc::close(s);
     }
+
+    Ok(())
+}
+
+fn main() {
+    run().unwrap();
 }
