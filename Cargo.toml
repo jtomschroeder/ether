@@ -18,7 +18,9 @@ keywords = ["networking", "pcap"]
 num = "0.1"
 libc = "0.2"
 glob = "0.2"
-futures = "0.1"
+futures = "0.1.9"
 nom = "2.0"
 itertools = "0.5.9"
 nix = { git = "https://github.com/nix-rust/nix", rev = "d4ba02f" }
+mio = "0.6.4"
+tokio-core = "0.1.4"

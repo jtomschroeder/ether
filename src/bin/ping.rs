@@ -18,35 +18,104 @@ const IP_MAXPACKET: usize = 65535; // maximum packet size
 // ICMP_ECHOREPLY          0
 // ICMP_ECHO               8
 
-fn pselect(nfds: libc::c_int,
-           readfds: Option<&mut libc::fd_set>,
-           writefds: Option<&mut libc::fd_set>,
-           timeout: Option<Duration>)
-           -> io::Result<()> {
-    let timeout = timeout.map(|d| {
-        libc::timespec {
-            tv_sec: d.as_secs() as libc::time_t,
-            tv_nsec: d.subsec_nanos() as libc::c_long,
-        }
-    });
+extern crate mio;
+extern crate tokio_core;
+extern crate futures;
+extern crate nix;
 
-    let ret = unsafe {
-        libc::pselect(nfds + 1,
-                      readfds.map(|to| to as *mut libc::fd_set)
-                          .unwrap_or(ptr::null_mut()),
-                      writefds.map(|to| to as *mut libc::fd_set)
-                          .unwrap_or(ptr::null_mut()),
-                      ptr::null_mut(),
-                      timeout.as_ref()
-                          .map(|to| to as *const libc::timespec)
-                          .unwrap_or(ptr::null()),
-                      ptr::null())
-    };
+use std::os::unix::io::RawFd;
+use mio::Evented;
+use mio::unix::EventedFd;
 
-    match ret {
-        -1 => Err(io::Error::last_os_error()), // Error occured!
-        0 => Err(io::Error::new(io::ErrorKind::TimedOut, "Timed out")),
-        _ => Ok(()),
+use tokio_core::reactor::Handle;
+use tokio_core::reactor::PollEvented;
+use futures::{Stream, Poll, Async};
+use tokio_core::reactor::Core;
+
+use nix::fcntl::{fcntl, FcntlArg, O_NONBLOCK};
+
+#[derive(Debug)]
+pub struct EventedFile {
+    fd: RawFd,
+}
+
+impl Evented for EventedFile {
+    fn register(&self,
+                poll: &mio::Poll,
+                token: mio::Token,
+                interest: mio::Ready,
+                opts: mio::PollOpt)
+                -> io::Result<()> {
+        EventedFd(&self.fd).register(poll, token, interest, opts)
+    }
+
+    fn reregister(&self,
+                  poll: &mio::Poll,
+                  token: mio::Token,
+                  interest: mio::Ready,
+                  opts: mio::PollOpt)
+                  -> io::Result<()> {
+        EventedFd(&self.fd).reregister(poll, token, interest, opts)
+    }
+
+    fn deregister(&self, poll: &mio::Poll) -> io::Result<()> {
+        EventedFd(&self.fd).deregister(poll)
+    }
+}
+
+pub struct RawSocketStream {
+    fd: RawFd,
+    evented: PollEvented<EventedFile>,
+}
+
+impl RawSocketStream {
+    pub fn new(evf: EventedFile, handle: &Handle) -> io::Result<Self> {
+        Ok(RawSocketStream {
+            fd: evf.fd,
+            evented: try!(PollEvented::new(evf, &handle)),
+        })
+    }
+}
+
+fn destination() -> libc::sockaddr_in {
+    let mut whereto: libc::sockaddr_in = unsafe { std::mem::zeroed() }; // who to ping
+    whereto.sin_family = libc::AF_INET as u8;
+    whereto.sin_len = 16; // sizeof sockaddr_in
+    whereto.sin_addr.s_addr = 0xEED83AD8; // google.com @ 216.58.216.238 (little endian)
+    whereto
+}
+
+impl Stream for RawSocketStream {
+    type Item = Vec<u8>;
+    type Error = io::Error;
+
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+        Ok(match self.evented.poll_read() {
+            Async::Ready(_) => {
+                self.evented.need_read();
+
+                let buffer = vec![0u8; IP_MAXPACKET];
+                let addrlen = 16u32;
+
+                let whereto = destination();
+
+                let recvd = unsafe {
+                    match libc::recvfrom(self.fd,
+                                         std::mem::transmute(buffer.as_ptr()),
+                                         buffer.len(),
+                                         0,
+                                         std::mem::transmute(&whereto),
+                                         std::mem::transmute(&addrlen)) {
+                        -1 => return Err(io::Error::last_os_error()),
+                        otherwise => otherwise as usize,
+                    }
+                };
+
+                Async::Ready(Some(buffer[..recvd].to_vec()))
+                // Async::Ready(None)
+            }
+            Async::NotReady => Async::NotReady,
+        })
     }
 }
 
@@ -58,7 +127,7 @@ fn main() {
         .sequence(0)
         .build("TEST".as_bytes());
 
-    unsafe {
+    let s = unsafe {
         use std::mem;
         use libc::*;
 
@@ -68,10 +137,7 @@ fn main() {
             return;
         }
 
-        let mut whereto: sockaddr_in = mem::zeroed(); // who to ping
-        whereto.sin_family = AF_INET as u8;
-        whereto.sin_len = 16; // sizeof sockaddr_in
-        whereto.sin_addr.s_addr = 0xEED83AD8; // google.com @ 216.58.216.238 (little endian)
+        let whereto = destination();
 
         // let hold = IP_MAXPACKET + 128;
         // setsockopt(s, SOL_SOCKET, SO_RCVBUF, mem::transmute(&hold), 4);
@@ -88,36 +154,33 @@ fn main() {
             return;
         }
 
-        {
-            let buffer = vec![0u8; IP_MAXPACKET];
-            let addrlen = 16u32;
-            let recvd = match recvfrom(s,
-                                       mem::transmute(buffer.as_ptr()),
-                                       buffer.len(),
-                                       0,
-                                       mem::transmute(&whereto),
-                                       mem::transmute(&addrlen)) {
-                -1 => {
-                    println!("ERROR! [recvfrom] {}", std::io::Error::last_os_error());
-                    return;
-                }
-                otherwise => otherwise as usize,
-            };
+        s
+    };
 
-            println!("{:?}", recvd);
+    let mut core = Core::new().expect("Core::new");
+    let handle = core.handle();
 
-            let packet = &buffer[0..recvd];
-            println!("{:?}", packet);
+    fcntl(s, FcntlArg::F_SETFL(O_NONBLOCK));
 
-            let packet = ipv4::Packet::new(packet);
+    let stream = RawSocketStream::new(EventedFile { fd: s }, &handle)
+        .expect("RawSocketStream::new");
+
+    core.run(stream.take(1).for_each(|buffer| {
+            println!("{:?}", buffer);
+
+            let packet = ipv4::Packet::new(&buffer);
             println!("{:?}", packet);
 
             let hlen = (packet.ihl() << 2) as usize;
-            let packet = &buffer[hlen..recvd];
+            let packet = &buffer[hlen..];
             let packet = icmp::Packet::new(packet);
             println!("{:?}", packet);
-        }
 
-        close(s);
+            Ok(())
+        }))
+        .unwrap();
+
+    unsafe {
+        libc::close(s);
     }
 }
