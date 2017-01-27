@@ -38,6 +38,9 @@ extern crate nom;
 #[macro_use]
 extern crate nexus;
 
+#[macro_use]
+extern crate nix;
+
 mod utility;
 
 pub mod packet;

@@ -108,28 +108,38 @@ const SIZEOF_UINT: c_ulong = 4;
 const SIZEOF_INT32: c_ulong = 4;
 const SIZEOF_BPF_PROGRAM: c_ulong = 16;
 
-pub const BIOCGBLEN: c_ulong = ior!('B', 102, SIZEOF_UINT);
-pub const BIOCSBLEN: c_ulong = iowr!('B', 102, SIZEOF_UINT);
-pub const BIOCSETF: c_ulong = iow!('B', 103, SIZEOF_BPF_PROGRAM);
-pub const BIOCFLUSH: c_ulong = io!('B', 104);
-pub const BIOCPROMISC: c_ulong = io!('B', 105);
-pub const BIOCGDLT: c_ulong = ior!('B', 106, SIZEOF_UINT);
-pub const BIOCGETIF: c_ulong = ior!('B', 107, SIZEOF_IFREQ);
-pub const BIOCSETIF: c_ulong = iow!('B', 108, SIZEOF_IFREQ);
-pub const BIOCSRTIMEOUT: c_ulong = iow!('B', 109, SIZEOF_TIMEVAL);
-pub const BIOCGRTIMEOUT: c_ulong = ior!('B', 110, SIZEOF_TIMEVAL);
-// pub const BIOCGSTATS: c_ulong = ior!('B', 111, struct bpf_stat);
-pub const BIOCIMMEDIATE: c_ulong = iow!('B', 112, SIZEOF_UINT);
-// pub const BIOCVERSION: c_ulong = ior!('B', 113, struct bpf_version);
-pub const BIOCGRSIG: c_ulong = ior!('B', 114, SIZEOF_UINT);
-pub const BIOCSRSIG: c_ulong = iow!('B', 115, SIZEOF_UINT);
-pub const BIOCGHDRCMPLT: c_ulong = ior!('B', 116, SIZEOF_UINT);
-pub const BIOCSHDRCMPLT: c_ulong = iow!('B', 117, SIZEOF_UINT);
-pub const BIOCGSEESENT: c_ulong = ior!('B', 118, SIZEOF_UINT);
-pub const BIOCSSEESENT: c_ulong = iow!('B', 119, SIZEOF_UINT);
-pub const BIOCSDLT: c_ulong = iow!('B', 120, SIZEOF_UINT);
-// pub const BIOCGDLTLIST: c_ulong = iowr!('B', 121, struct bpf_dltlist);
-pub const BIOCSETFNR: c_ulong = iow!('B', 126, SIZEOF_BPF_PROGRAM);
+pub const BIOCGBLEN: u32 = ior!('B', 102, SIZEOF_UINT);
+pub const BIOCSBLEN: u32 = iorw!('B', 102, SIZEOF_UINT);
+pub const BIOCSETF: u32 = iow!('B', 103, SIZEOF_BPF_PROGRAM);
+pub const BIOCFLUSH: u32 = io!('B', 104);
+pub const BIOCPROMISC: u32 = io!('B', 105);
+pub const BIOCGDLT: u32 = ior!('B', 106, SIZEOF_UINT);
+pub const BIOCGETIF: u32 = ior!('B', 107, SIZEOF_IFREQ);
+pub const BIOCSETIF: u32 = iow!('B', 108, SIZEOF_IFREQ);
+pub const BIOCSRTIMEOUT: u32 = iow!('B', 109, SIZEOF_TIMEVAL);
+pub const BIOCGRTIMEOUT: u32 = ior!('B', 110, SIZEOF_TIMEVAL);
+// pub const BIOCGSTATS: u32 = ior!('B', 111, struct bpf_stat);
+pub const BIOCIMMEDIATE: u32 = iow!('B', 112, SIZEOF_UINT);
+// pub const BIOCVERSION: u32 = ior!('B', 113, struct bpf_version);
+pub const BIOCGRSIG: u32 = ior!('B', 114, SIZEOF_UINT);
+pub const BIOCSRSIG: u32 = iow!('B', 115, SIZEOF_UINT);
+pub const BIOCGHDRCMPLT: u32 = ior!('B', 116, SIZEOF_UINT);
+pub const BIOCSHDRCMPLT: u32 = iow!('B', 117, SIZEOF_UINT);
+pub const BIOCGSEESENT: u32 = ior!('B', 118, SIZEOF_UINT);
+pub const BIOCSSEESENT: u32 = iow!('B', 119, SIZEOF_UINT);
+pub const BIOCSDLT: u32 = iow!('B', 120, SIZEOF_UINT);
+// pub const BIOCGDLTLIST: u32 = iorw!('B', 121, struct bpf_dltlist);
+pub const BIOCSETFNR: u32 = iow!('B', 126, SIZEOF_BPF_PROGRAM);
+
+#[macro_export]
+macro_rules! bioctl {
+    ($fd:expr, $request:expr, $( $arg:expr ),*) => {
+        convert_ioctl_res!(unsafe {
+            use nix::sys::ioctl;
+            ioctl::ioctl($fd, $request as ioctl::libc::c_ulong, $( $arg, )*)
+        })
+    };
+}
 
 // Device Type
 pub const DLT_NULL: c_uint = 0; // BSD loopback encapsulation

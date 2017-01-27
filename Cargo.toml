@@ -22,3 +22,4 @@ futures = "0.1"
 nom = "2.0"
 itertools = "0.5.9"
 nexus = { path = "ext/nexus" }
+nix = { git = "https://github.com/nix-rust/nix", rev = "d4ba02f" }

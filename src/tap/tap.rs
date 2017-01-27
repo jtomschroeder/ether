@@ -102,29 +102,26 @@ impl Tap {
             }
 
             // Set the buffer length
-            let buflen = config.buffer_size as libc::c_uint;
-            ioctl!(fd, bpf::BIOCSBLEN, &buflen);
+            try!(bioctl!(fd, bpf::BIOCSBLEN, &config.buffer_size));
 
             // Set the interface to use
-            ioctl!(fd, bpf::BIOCSETIF, &iface);
-
-            let yes: libc::c_uint = 1;
+            try!(bioctl!(fd, bpf::BIOCSETIF, &iface));
 
             // Return from read as soon as packets are available - don't wait to fill the buffer
-            ioctl!(fd, bpf::BIOCIMMEDIATE, &yes);
+            try!(bioctl!(fd, bpf::BIOCIMMEDIATE, &1));
 
             // Get the device type
-            let mut dlt: libc::c_uint = 0;
-            ioctl!(fd, bpf::BIOCGDLT, &mut dlt);
+            let mut dlt = 0u32;
+            try!(bioctl!(fd, bpf::BIOCGDLT, &mut dlt));
 
             match dlt {
                 bpf::DLT_NULL => {
                     // Allow packets to be read back after they are written
-                    ioctl!(fd, bpf::BIOCSSEESENT, &yes);
+                    try!(bioctl!(fd, bpf::BIOCSSEESENT, &1));
                 }
                 _ => {
                     // Don't fill in source MAC
-                    ioctl!(fd, bpf::BIOCSHDRCMPLT, &yes);
+                    try!(bioctl!(fd, bpf::BIOCSHDRCMPLT, &1));
                 }
             }
 
@@ -144,12 +141,12 @@ impl Tap {
                 //                         BPF_STMT(BPF_RET + BPF_K, std::u32::MAX),
                 //                         BPF_STMT(BPF_RET + BPF_K, 0)];
 
-                ioctl!(fd,
-                       BIOCSETF,
-                       &bpf_program {
-                           bf_len: instructions.len() as u32,
-                           bf_insns: instructions.as_ptr(),
-                       });
+                try!(bioctl!(fd,
+                             BIOCSETF,
+                             &bpf_program {
+                                 bf_len: instructions.len() as u32,
+                                 bf_insns: instructions.as_ptr(),
+                             }));
             }
 
             // Enable nonblocking
