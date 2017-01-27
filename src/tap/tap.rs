@@ -9,6 +9,7 @@ use std::os::unix::io::AsRawFd;
 use std::collections::VecDeque;
 
 use futures;
+use nix::fcntl::{fcntl, FcntlArg, O_NONBLOCK};
 
 use libc;
 use glob::glob;
@@ -150,7 +151,7 @@ impl Tap {
             }
 
             // Enable nonblocking
-            fcntl!(fd, libc::F_SETFL, libc::O_NONBLOCK);
+            try!(fcntl(fd, FcntlArg::F_SETFL(O_NONBLOCK)));
         }
 
         let mut fd_set: libc::fd_set = unsafe { mem::zeroed() };

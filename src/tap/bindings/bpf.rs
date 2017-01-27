@@ -3,7 +3,7 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 
-use libc::{self, c_ulong, c_char, c_uchar, c_int, c_uint, c_ushort};
+use libc::{self, c_ulong, c_char, c_uchar, c_uint, c_ushort};
 
 // From /usr/include/net/if.h
 
@@ -108,28 +108,28 @@ const SIZEOF_UINT: c_ulong = 4;
 const SIZEOF_INT32: c_ulong = 4;
 const SIZEOF_BPF_PROGRAM: c_ulong = 16;
 
-pub const BIOCGBLEN: u32 = ior!('B', 102, SIZEOF_UINT);
-pub const BIOCSBLEN: u32 = iorw!('B', 102, SIZEOF_UINT);
-pub const BIOCSETF: u32 = iow!('B', 103, SIZEOF_BPF_PROGRAM);
-pub const BIOCFLUSH: u32 = io!('B', 104);
-pub const BIOCPROMISC: u32 = io!('B', 105);
-pub const BIOCGDLT: u32 = ior!('B', 106, SIZEOF_UINT);
-pub const BIOCGETIF: u32 = ior!('B', 107, SIZEOF_IFREQ);
-pub const BIOCSETIF: u32 = iow!('B', 108, SIZEOF_IFREQ);
-pub const BIOCSRTIMEOUT: u32 = iow!('B', 109, SIZEOF_TIMEVAL);
-pub const BIOCGRTIMEOUT: u32 = ior!('B', 110, SIZEOF_TIMEVAL);
-// pub const BIOCGSTATS: u32 = ior!('B', 111, struct bpf_stat);
-pub const BIOCIMMEDIATE: u32 = iow!('B', 112, SIZEOF_UINT);
-// pub const BIOCVERSION: u32 = ior!('B', 113, struct bpf_version);
-pub const BIOCGRSIG: u32 = ior!('B', 114, SIZEOF_UINT);
-pub const BIOCSRSIG: u32 = iow!('B', 115, SIZEOF_UINT);
-pub const BIOCGHDRCMPLT: u32 = ior!('B', 116, SIZEOF_UINT);
-pub const BIOCSHDRCMPLT: u32 = iow!('B', 117, SIZEOF_UINT);
-pub const BIOCGSEESENT: u32 = ior!('B', 118, SIZEOF_UINT);
-pub const BIOCSSEESENT: u32 = iow!('B', 119, SIZEOF_UINT);
-pub const BIOCSDLT: u32 = iow!('B', 120, SIZEOF_UINT);
-// pub const BIOCGDLTLIST: u32 = iorw!('B', 121, struct bpf_dltlist);
-pub const BIOCSETFNR: u32 = iow!('B', 126, SIZEOF_BPF_PROGRAM);
+pub const BIOCGBLEN: c_uint = ior!('B', 102, SIZEOF_UINT);
+pub const BIOCSBLEN: c_uint = iorw!('B', 102, SIZEOF_UINT);
+pub const BIOCSETF: c_uint = iow!('B', 103, SIZEOF_BPF_PROGRAM);
+pub const BIOCFLUSH: c_uint = io!('B', 104);
+pub const BIOCPROMISC: c_uint = io!('B', 105);
+pub const BIOCGDLT: c_uint = ior!('B', 106, SIZEOF_UINT);
+pub const BIOCGETIF: c_uint = ior!('B', 107, SIZEOF_IFREQ);
+pub const BIOCSETIF: c_uint = iow!('B', 108, SIZEOF_IFREQ);
+pub const BIOCSRTIMEOUT: c_uint = iow!('B', 109, SIZEOF_TIMEVAL);
+pub const BIOCGRTIMEOUT: c_uint = ior!('B', 110, SIZEOF_TIMEVAL);
+// pub const BIOCGSTATS: c_uint = ior!('B', 111, struct bpf_stat);
+pub const BIOCIMMEDIATE: c_uint = iow!('B', 112, SIZEOF_UINT);
+// pub const BIOCVERSION: c_uint = ior!('B', 113, struct bpf_version);
+pub const BIOCGRSIG: c_uint = ior!('B', 114, SIZEOF_UINT);
+pub const BIOCSRSIG: c_uint = iow!('B', 115, SIZEOF_UINT);
+pub const BIOCGHDRCMPLT: c_uint = ior!('B', 116, SIZEOF_UINT);
+pub const BIOCSHDRCMPLT: c_uint = iow!('B', 117, SIZEOF_UINT);
+pub const BIOCGSEESENT: c_uint = ior!('B', 118, SIZEOF_UINT);
+pub const BIOCSSEESENT: c_uint = iow!('B', 119, SIZEOF_UINT);
+pub const BIOCSDLT: c_uint = iow!('B', 120, SIZEOF_UINT);
+// pub const BIOCGDLTLIST: c_uint = iorw!('B', 121, struct bpf_dltlist);
+pub const BIOCSETFNR: c_uint = iow!('B', 126, SIZEOF_BPF_PROGRAM);
 
 #[macro_export]
 macro_rules! bioctl {
