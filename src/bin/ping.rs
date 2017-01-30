@@ -1,4 +1,9 @@
 
+extern crate mio;
+extern crate tokio_core;
+extern crate futures;
+extern crate nix;
+
 extern crate ether;
 extern crate libc;
 extern crate itertools;
@@ -17,14 +22,7 @@ const IP_MAXPACKET: usize = 65535; // maximum packet size
 // ICMP_ECHOREPLY          0
 // ICMP_ECHO               8
 
-extern crate mio;
-extern crate tokio_core;
-extern crate futures;
-extern crate nix;
-
 use std::os::unix::io::RawFd;
-use std::ops;
-
 use nix::fcntl::{fcntl, FcntlArg, O_NONBLOCK};
 
 use mio::Evented;
@@ -48,20 +46,50 @@ impl RawSocket {
         self.0
     }
 
-    fn recv_from(&self, buffer: &mut [u8], addr: net::Ipv4Addr) -> io::Result<usize> {
+    fn send_to(&self, buf: &[u8], addr: net::Ipv4Addr) -> io::Result<usize> {
         let whereto = destination(addr);
-        let addrlen = 16u32;
+        let addrlen = mem::size_of::<libc::sockaddr_in>() as u32;
 
+        match unsafe {
+            libc::sendto(self.raw(),
+                         mem::transmute(buf.as_ptr()),
+                         buf.len(),
+                         0,
+                         mem::transmute(&whereto),
+                         addrlen)
+        } {
+            -1 => Err(io::Error::last_os_error()),
+            otherwise => Ok(otherwise as usize),
+        }
+    }
+
+    fn recv_from(&self, buf: &mut [u8], addr: net::Ipv4Addr) -> io::Result<usize> {
+        let whereto = destination(addr);
+        let addrlen = mem::size_of::<libc::sockaddr_in>();
+
+        match unsafe {
+            libc::recvfrom(self.raw(),
+                           mem::transmute(buf.as_ptr()),
+                           buf.len(),
+                           0,
+                           mem::transmute(&whereto),
+                           mem::transmute(&addrlen))
+        } {
+            -1 => Err(io::Error::last_os_error()),
+            otherwise => Ok(otherwise as usize),
+        }
+    }
+
+    fn set_nonblocking(&self) -> io::Result<()> {
+        try!(fcntl(self.raw(), FcntlArg::F_SETFL(O_NONBLOCK)));
+        Ok(())
+    }
+}
+
+impl Drop for RawSocket {
+    fn drop(&mut self) {
         unsafe {
-            match libc::recvfrom(self.raw(),
-                                 mem::transmute(buffer.as_ptr()),
-                                 buffer.len(),
-                                 0,
-                                 mem::transmute(&whereto),
-                                 mem::transmute(&addrlen)) {
-                -1 => Err(io::Error::last_os_error()),
-                otherwise => Ok(otherwise as usize),
-            }
+            libc::close(self.raw());
         }
     }
 }
@@ -93,6 +121,7 @@ impl<'a> Evented for &'a RawSocket {
 pub struct RawSocketStream<'a> {
     socket: &'a RawSocket,
     evented: PollEvented<&'a RawSocket>,
+    buffer: Vec<u8>,
 }
 
 impl<'a> RawSocketStream<'a> {
@@ -100,13 +129,12 @@ impl<'a> RawSocketStream<'a> {
         Ok(RawSocketStream {
             socket: socket,
             evented: try!(PollEvented::new(socket, &handle)),
+            buffer: vec![0u8; IP_MAXPACKET],
         })
     }
 }
 
 fn destination(addr: net::Ipv4Addr) -> libc::sockaddr_in {
-    // let addr = net::Ipv4Addr::new(216, 58, 216, 238); // google.com
-
     let mut whereto: libc::sockaddr_in = unsafe { mem::zeroed() };
     whereto.sin_family = libc::AF_INET as u8;
     whereto.sin_len = 16; // sizeof(sockaddr_in)
@@ -124,10 +152,9 @@ impl<'a> Stream for RawSocketStream<'a> {
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         Ok(match self.evented.poll_read() {
             Async::Ready(_) => {
-                let mut buffer = vec![0u8; IP_MAXPACKET];
                 let addr = net::Ipv4Addr::new(216, 58, 216, 238);
-                let recvd = try!(self.socket.recv_from(&mut buffer, addr));
-                Async::Ready(Some(buffer[..recvd].to_vec()))
+                let recvd = try!(self.socket.recv_from(&mut self.buffer, addr));
+                Async::Ready(Some(self.buffer[..recvd].to_vec()))
             }
             Async::NotReady => Async::NotReady,
         })
@@ -144,38 +171,18 @@ fn run() -> io::Result<()> {
 
     let addr = net::Ipv4Addr::new(216, 58, 216, 238); // google.com
 
-    let s = unsafe {
-        use std::mem;
-        use libc::*;
+    let socket = try!(RawSocket::new());
+    try!(socket.set_nonblocking());
 
-        let s = try!(RawSocket::new());
-
-        let whereto = destination(addr);
-
-        // Send echo request
-        let i = sendto(s.raw(),
-                       mem::transmute(packet.as_ptr()),
-                       packet.len(),
-                       0,
-                       mem::transmute(&whereto),
-                       16);
-        if i < 0 {
-            return Err(io::Error::last_os_error());
-        }
-
-        s
-    };
+    // Send echo request
+    try!(socket.send_to(&packet, addr));
 
     let mut core = try!(Core::new());
     let handle = core.handle();
 
-    try!(fcntl(s.raw(), FcntlArg::F_SETFL(O_NONBLOCK)));
-
-    let stream = try!(RawSocketStream::new(&s, &handle));
+    let stream = try!(RawSocketStream::new(&socket, &handle));
 
     try!(core.run(stream.take(1).for_each(|buffer| {
-        println!("{:?}", buffer);
-
         let packet = ipv4::Packet::new(&buffer);
         println!("{:?}", packet);
 
@@ -186,10 +193,6 @@ fn run() -> io::Result<()> {
 
         Ok(())
     })));
-
-    unsafe {
-        libc::close(s.raw());
-    }
 
     Ok(())
 }
