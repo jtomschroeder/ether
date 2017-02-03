@@ -18,7 +18,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ether = "0.0.1"
+ether = "0.0.3"
 ```
 
 and this to *root* of your crate:
