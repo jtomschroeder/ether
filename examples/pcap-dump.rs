@@ -12,13 +12,12 @@ fn run() -> std::io::Result<()> {
     try!(file.read_to_end(&mut buffer));
 
     let pcap = pcap::PacketCapture::new(buffer);
-    match pcap.parse().unwrap() {
-        (pcap::Header { network: pcap::Link::Ethernet, .. }, records) => {
-            for pcap::Record { payload, .. } in records {
-                println!("ethernet: {:?}", payload);
-            }
+    let (_, records) = pcap.parse().unwrap();
+    for record in records {
+        match record {
+            Ok(pcap::Record { payload, .. }) => println!("payload: {:?}", payload),
+            _ => panic!("Failed to parse record!"),
         }
-        _ => {}
     }
 
     Ok(())
