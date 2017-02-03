@@ -1,12 +1,12 @@
 [package]
 name = "ether"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["Tom Schroeder <j.tom.schroeder@gmail.com>"]
 description = "Library for parsing and manipulating network data, packet captures."
 
 exclude = ["etc/*"]
 
-# documentation = "..."
+documentation = "https://docs.rs/ether"
 homepage = "https://github.com/jtomschroeder/ether"
 repository = "https://github.com/jtomschroeder/ether"
 
