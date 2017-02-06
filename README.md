@@ -8,9 +8,7 @@
 
 **NOTE:** `ether` is currently in the *alpha* phase (API is likely to change).
 
-## Documentation
-
-On its way!
+[Documentation](https://docs.rs/ether)
 
 ## Usage
 
@@ -18,7 +16,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ether = "0.0.3"
+ether = "0.0.4"
 ```
 
 and this to *root* of your crate:

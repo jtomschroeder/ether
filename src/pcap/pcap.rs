@@ -134,14 +134,14 @@ impl<'a> Iterator for Records<'a> {
     type Item = Result<Record<'a>, ParseError>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.capture.is_empty() {
+            return None;
+        }
+
         match Record::parse(&self.capture) {
             IResult::Done(input, output) => {
-                if input.is_empty() {
-                    None
-                } else {
-                    self.capture = input;
-                    Some(Ok(output))
-                }
+                self.capture = input;
+                Some(Ok(output))
             }
             IResult::Error(e) => Some(Err(ParseError(nom::IError::Error(e)))),
             IResult::Incomplete(i) => Some(Err(ParseError(nom::IError::Incomplete(i)))),
