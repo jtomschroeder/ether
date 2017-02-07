@@ -8,7 +8,7 @@ use nom::IResult;
 /// * major version number
 /// * minor version number
 /// * GMT to local correction
-/// * accuracy of timestamps
+/// * accuracy of timestamps (typically ignored as 0)
 /// * max length of captured packets, in octets
 /// * data link type
 ///
@@ -116,17 +116,35 @@ impl<'a> Record<'a> {
 pub struct ParseError(nom::IError);
 
 impl PacketCapture {
-    pub fn parse(&self) -> Result<(Header, Vec<Record>), ParseError> {
-        fn parse<'a>(data: &'a [u8]) -> IResult<&[u8], (Header, Vec<Record<'a>>)> {
-            do_parse!(data,
-                header: call!(Header::parse) >>
-                records: many0!(call!(Record::parse)) >>
-                ((header, records))
-            )
+    pub fn parse<'a>(&'a self) -> Result<(Header, Records<'a>), ParseError> {
+        match Header::parse(&self.capture) {
+            IResult::Done(input, output) => Ok((output, Records { capture: input })),
+            IResult::Error(e) => Err(ParseError(nom::IError::Error(e))),
+            IResult::Incomplete(i) => Err(ParseError(nom::IError::Incomplete(i))),
+        }
+    }
+}
+
+
+pub struct Records<'a> {
+    capture: &'a [u8],
+}
+
+impl<'a> Iterator for Records<'a> {
+    type Item = Result<Record<'a>, ParseError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.capture.is_empty() {
+            return None;
         }
 
-        parse(&self.capture)
-            .to_full_result()
-            .map_err(|err| ParseError(err))
+        match Record::parse(&self.capture) {
+            IResult::Done(input, output) => {
+                self.capture = input;
+                Some(Ok(output))
+            }
+            IResult::Error(e) => Some(Err(ParseError(nom::IError::Error(e)))),
+            IResult::Incomplete(i) => Some(Err(ParseError(nom::IError::Incomplete(i)))),
+        }
     }
 }
