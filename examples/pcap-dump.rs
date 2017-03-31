@@ -5,19 +5,12 @@ use ether::pcap;
 
 fn run() -> std::io::Result<()> {
     use std::fs::File;
-    use std::io::Read;
+    let file = try!(File::open("etc/capture_tcp1.pcap"));
 
-    let mut buffer = Vec::new();
-    let mut file = try!(File::open("etc/capture_tcp1.pcap"));
-    try!(file.read_to_end(&mut buffer));
-
-    let pcap = pcap::PacketCapture::new(buffer);
+    let pcap = pcap::PacketCapture::new(file);
     let (_, records) = pcap.parse().unwrap();
-    for record in records {
-        match record {
-            Ok(pcap::Record { payload, .. }) => println!("payload: {:?}", payload),
-            _ => panic!("Failed to parse record!"),
-        }
+    for pcap::Record { payload, .. } in records {
+        println!("payload: {:?}", payload);
     }
 
     Ok(())

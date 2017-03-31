@@ -1,7 +1,4 @@
 
-use nom;
-use nom::IResult;
-
 /// PCAP Header
 ///
 /// * magic number (0xA1B23C4D)
@@ -48,103 +45,101 @@ impl From<u32> for Link {
 /// * number of octets of packet saved in file
 /// * actual length of packet
 #[derive(Debug)]
-pub struct Record<'a> {
+pub struct Record {
     pub ts_sec: u32,
     pub ts_usec: u32,
     pub incl_len: u32,
     pub orig_len: u32,
-    pub payload: &'a [u8],
+    pub payload: Vec<u8>,
+}
+
+use std::io;
+use std::io::{Read, BufReader};
+
+struct Buffer<R>(BufReader<R>);
+
+impl<R: Read> Buffer<R> {
+    fn take(&mut self, length: usize) -> io::Result<Vec<u8>> {
+        let mut buffer = vec![0; length];
+        self.0.read_exact(&mut buffer)?;
+        Ok(buffer)
+    }
+
+    fn take_i32(&mut self) -> io::Result<i32> {
+        let buffer = self.take(4)?;
+        Ok((buffer[0] as i32) + ((buffer[1] as i32) << 8) + ((buffer[2] as i32) << 16) +
+           ((buffer[3] as i32) << 24))
+    }
+
+    fn take_u32(&mut self) -> io::Result<u32> {
+        let buffer = self.take(4)?;
+        Ok((buffer[0] as u32) + ((buffer[1] as u32) << 8) + ((buffer[2] as u32) << 16) +
+           ((buffer[3] as u32) << 24))
+    }
+
+    fn take_u16(&mut self) -> io::Result<u16> {
+        let buffer = self.take(2)?;
+        Ok((buffer[0] as u16) + ((buffer[1] as u16) << 8))
+    }
 }
 
 /// PacketCapture: container for pcap byte-stream
-pub struct PacketCapture {
-    capture: Vec<u8>,
+pub struct PacketCapture<R> {
+    capture: Buffer<R>,
 }
 
-impl PacketCapture {
-    pub fn new(capture: Vec<u8>) -> Self {
-        PacketCapture { capture: capture }
+impl<R: Read> PacketCapture<R> {
+    pub fn new(capture: R) -> PacketCapture<R> {
+        PacketCapture { capture: Buffer(BufReader::new(capture)) }
     }
 }
-
-// Parsing
 
 impl Header {
-    fn parse(data: &[u8]) -> IResult<&[u8], Header> {
-        use nom::*;
-
-        do_parse!(data,
-                  magic_number: le_u32 >> version_major: le_u16 >> version_minor: le_u16 >>
-                  thiszone: le_i32 >>
-                  sigfigs: le_u32 >> snaplen: le_u32 >> network: le_u32 >>
-                  (Header {
-                      magic_number: magic_number,
-                      version_major: version_major,
-                      version_minor: version_minor,
-                      thiszone: thiszone,
-                      sigfigs: sigfigs,
-                      snaplen: snaplen,
-                      network: Link::from(network),
-                  }))
+    fn parse<R: Read>(data: &mut Buffer<R>) -> io::Result<Header> {
+        Ok(Header {
+            magic_number: data.take_u32()?,
+            version_major: data.take_u16()?,
+            version_minor: data.take_u16()?,
+            thiszone: data.take_i32()?,
+            sigfigs: data.take_u32()?,
+            snaplen: data.take_u32()?,
+            network: Link::from(data.take_u32()?),
+        })
     }
 }
 
-impl<'a> Record<'a> {
-    fn parse(data: &[u8]) -> IResult<&[u8], Record> {
-        use nom::*;
+impl Record {
+    fn parse<R: Read>(data: &mut Buffer<R>) -> io::Result<Record> {
+        let ts_sec = data.take_u32()?;
+        let ts_usec = data.take_u32()?;
+        let incl_len = data.take_u32()?;
+        let orig_len = data.take_u32()?;
+        let payload = data.take(incl_len as usize)?;
 
-        do_parse!(data,
-            ts_sec: le_u32 >>
-            ts_usec: le_u32 >>
-            incl_len: le_u32 >>
-            orig_len: le_u32 >>
-            payload: take!(incl_len) >>
-
-            (Record {
-                ts_sec: ts_sec,
-                ts_usec: ts_usec,
-                incl_len: incl_len,
-                orig_len: orig_len,
-                payload: payload,
-            })
-        )
+        Ok(Record {
+            ts_sec: ts_sec,
+            ts_usec: ts_usec,
+            incl_len: incl_len,
+            orig_len: orig_len,
+            payload: payload,
+        })
     }
 }
 
-/// PCAP parse error
-#[derive(Debug)]
-pub struct ParseError(nom::IError);
-
-impl PacketCapture {
-    pub fn parse<'a>(&'a self) -> Result<(Header, Records<'a>), ParseError> {
-        match Header::parse(&self.capture) {
-            IResult::Done(input, output) => Ok((output, Records { capture: input })),
-            IResult::Error(e) => Err(ParseError(nom::IError::Error(e))),
-            IResult::Incomplete(i) => Err(ParseError(nom::IError::Incomplete(i))),
-        }
+impl<R: Read> PacketCapture<R> {
+    pub fn parse(mut self) -> io::Result<(Header, Records<R>)> {
+        Ok((Header::parse(&mut self.capture)?, Records { capture: self.capture }))
     }
 }
 
-
-pub struct Records<'a> {
-    capture: &'a [u8],
+pub struct Records<R> {
+    capture: Buffer<R>,
 }
 
-impl<'a> Iterator for Records<'a> {
-    type Item = Result<Record<'a>, ParseError>;
+impl<R: Read> Iterator for Records<R> {
+    type Item = Record;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.capture.is_empty() {
-            return None;
-        }
-
-        match Record::parse(&self.capture) {
-            IResult::Done(input, output) => {
-                self.capture = input;
-                Some(Ok(output))
-            }
-            IResult::Error(e) => Some(Err(ParseError(nom::IError::Error(e)))),
-            IResult::Incomplete(i) => Some(Err(ParseError(nom::IError::Incomplete(i)))),
-        }
+        Record::parse(&mut self.capture).ok()
     }
 }

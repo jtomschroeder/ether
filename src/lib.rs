@@ -32,9 +32,6 @@ extern crate libc;
 extern crate glob;
 extern crate futures;
 
-#[macro_use]
-extern crate nom;
-
 mod utility;
 
 pub mod packet;
