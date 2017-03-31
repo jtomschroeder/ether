@@ -12,19 +12,6 @@
 
 ## Usage
 
-Add this to your `Cargo.toml`:
-
-```toml
-[dependencies]
-ether = "0.0.4"
-```
-
-and this to *root* of your crate:
-
-```rust
-extern crate ether;
-```
-
 Here's a simple example that prints all packets received on interface `en0`:
 
 ```rust
