@@ -97,14 +97,14 @@ impl<R: Read> PacketCapture<R> {
 impl Header {
     fn parse<R: Read>(data: &mut Buffer<R>) -> io::Result<Header> {
         Ok(Header {
-            magic_number: data.take_u32()?,
-            version_major: data.take_u16()?,
-            version_minor: data.take_u16()?,
-            thiszone: data.take_i32()?,
-            sigfigs: data.take_u32()?,
-            snaplen: data.take_u32()?,
-            network: Link::from(data.take_u32()?),
-        })
+               magic_number: data.take_u32()?,
+               version_major: data.take_u16()?,
+               version_minor: data.take_u16()?,
+               thiszone: data.take_i32()?,
+               sigfigs: data.take_u32()?,
+               snaplen: data.take_u32()?,
+               network: Link::from(data.take_u32()?),
+           })
     }
 }
 
@@ -117,12 +117,12 @@ impl Record {
         let payload = data.take(incl_len as usize)?;
 
         Ok(Record {
-            ts_sec: ts_sec,
-            ts_usec: ts_usec,
-            incl_len: incl_len,
-            orig_len: orig_len,
-            payload: payload,
-        })
+               ts_sec: ts_sec,
+               ts_usec: ts_usec,
+               incl_len: incl_len,
+               orig_len: orig_len,
+               payload: payload,
+           })
     }
 }
 
