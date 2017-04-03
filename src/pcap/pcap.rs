@@ -54,11 +54,15 @@ pub struct Record {
 }
 
 use std::io;
-use std::io::{Read, BufReader};
+use std::io::{Read, BufReader, Cursor};
 
 struct Buffer<R>(BufReader<R>);
 
 impl<R: Read> Buffer<R> {
+    fn new(buffer: R) -> Self {
+        Buffer(BufReader::new(buffer))
+    }
+
     fn take(&mut self, length: usize) -> io::Result<Vec<u8>> {
         let mut buffer = vec![0; length];
         self.0.read_exact(&mut buffer)?;
@@ -90,7 +94,13 @@ pub struct PacketCapture<R> {
 
 impl<R: Read> PacketCapture<R> {
     pub fn new(capture: R) -> PacketCapture<R> {
-        PacketCapture { capture: Buffer(BufReader::new(capture)) }
+        PacketCapture { capture: Buffer::new(capture) }
+    }
+}
+
+impl From<Vec<u8>> for PacketCapture<Cursor<Vec<u8>>> {
+    fn from(buffer: Vec<u8>) -> Self {
+        PacketCapture { capture: Buffer::new(Cursor::new(buffer)) }
     }
 }
 
