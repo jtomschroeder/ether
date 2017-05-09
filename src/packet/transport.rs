@@ -114,7 +114,7 @@ pub mod tcp {
     }
 
     #[allow(dead_code)]
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Clone)]
     pub enum Flag {
         NS,
         CWR,

@@ -93,7 +93,7 @@ pub mod ethernet {
         }
     }
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Clone)]
     pub enum EtherType {
         IPv4,
         ARP,

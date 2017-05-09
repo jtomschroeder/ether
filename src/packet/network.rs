@@ -71,7 +71,7 @@ pub mod ipv4 {
         }
     }
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Clone)]
     pub enum Protocol {
         ICMP,
         IGMP,
