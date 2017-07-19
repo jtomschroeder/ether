@@ -1,6 +1,6 @@
 [package]
 name = "ether"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Tom Schroeder <j.tom.schroeder@gmail.com>"]
 description = "Library for parsing and manipulating network data, packet captures."
 
