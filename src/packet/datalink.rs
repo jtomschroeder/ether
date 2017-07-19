@@ -27,7 +27,7 @@ pub mod loopback {
                 7 => Link::OSI,
                 23 => Link::IPX,
 
-                otherwise => panic!("Unsupported link {}", otherwise),
+                link => panic!("Unsupported link {}", link),
             }
         }
 
@@ -97,6 +97,7 @@ pub mod ethernet {
     pub enum EtherType {
         IPv4,
         ARP,
+        VLAN,
         IPv6,
         Unknown(u16),
     }
@@ -107,8 +108,47 @@ pub mod ethernet {
             match value {
                 0x0800 => IPv4,
                 0x0806 => ARP,
+                0x8100 => VLAN, // VLAN-tagged frame (IEEE 802.1Q)
                 0x86DD => IPv6,
-                otherwise => Unknown(otherwise),
+                e => Unknown(e),
+            }
+        }
+    }
+
+    pub mod vlan {
+        use std::ops;
+        use std::fmt;
+        use utility::parser;
+
+        pub struct Frame<'a>(&'a [u8]);
+
+        #[doc(hidden)]
+        impl<'a> ops::Deref for Frame<'a> {
+            type Target = &'a [u8];
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
+        }
+
+        impl<'a> Frame<'a> {
+            pub fn new(data: &'a [u8]) -> Self {
+                Frame(data)
+            }
+
+            pub fn ethertype(&self) -> super::EtherType {
+                parser::be_u16(&self[2..]).into()
+            }
+
+            pub fn payload(&self) -> &[u8] {
+                &self[4..]
+            }
+        }
+
+        impl<'a> fmt::Debug for Frame<'a> {
+            fn fmt(&self, fmtr: &mut fmt::Formatter) -> fmt::Result {
+                fmtr.debug_struct("vlan::Frame")
+                    .field("ethertype", &self.ethertype())
+                    .finish()
             }
         }
     }
