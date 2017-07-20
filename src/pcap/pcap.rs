@@ -1,4 +1,6 @@
 
+use std::mem;
+
 /// PCAP Header
 ///
 /// * magic number (0xA1B23C4D)
@@ -56,34 +58,46 @@ pub struct Record {
 use std::io;
 use std::io::{Read, BufReader, Cursor};
 
-struct Buffer<R>(BufReader<R>);
+struct Buffer<R> {
+    cache: Vec<u8>,
+    reader: BufReader<R>,
+}
 
 impl<R: Read> Buffer<R> {
     fn new(buffer: R) -> Self {
-        Buffer(BufReader::new(buffer))
+        Buffer {
+            cache: vec![],
+            reader: BufReader::new(buffer),
+        }
     }
 
-    fn take(&mut self, length: usize) -> io::Result<Vec<u8>> {
-        let mut buffer = vec![0; length];
-        self.0.read_exact(&mut buffer)?;
-        Ok(buffer)
+    fn take(&mut self, length: usize) -> io::Result<&[u8]> {
+        if self.cache.len() < length {
+            let additional = length - self.cache.len();
+            self.cache.reserve(additional);
+            unsafe { self.cache.set_len(length) };
+        }
+
+        self.reader.read_exact(&mut self.cache[..length])?;
+        Ok(&self.cache[..length])
     }
 
     fn take_i32(&mut self) -> io::Result<i32> {
         let buffer = self.take(4)?;
-        Ok((buffer[0] as i32) + ((buffer[1] as i32) << 8) + ((buffer[2] as i32) << 16) +
-           ((buffer[3] as i32) << 24))
+        let buffer = unsafe { mem::transmute::<&[u8], &[i32]>(buffer) };
+        Ok(buffer[0])
     }
 
     fn take_u32(&mut self) -> io::Result<u32> {
         let buffer = self.take(4)?;
-        Ok((buffer[0] as u32) + ((buffer[1] as u32) << 8) + ((buffer[2] as u32) << 16) +
-           ((buffer[3] as u32) << 24))
+        let buffer = unsafe { mem::transmute::<&[u8], &[u32]>(buffer) };
+        Ok(buffer[0])
     }
 
     fn take_u16(&mut self) -> io::Result<u16> {
         let buffer = self.take(2)?;
-        Ok((buffer[0] as u16) + ((buffer[1] as u16) << 8))
+        let buffer = unsafe { mem::transmute::<&[u8], &[u16]>(buffer) };
+        Ok(buffer[0])
     }
 }
 
@@ -131,7 +145,7 @@ impl Record {
                ts_usec: ts_usec,
                incl_len: incl_len,
                orig_len: orig_len,
-               payload: payload,
+               payload: payload.into(),
            })
     }
 }
