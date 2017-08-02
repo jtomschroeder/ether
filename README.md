@@ -2,7 +2,7 @@
 # ether
 
 [![crates.io](https://img.shields.io/crates/v/ether.svg)](https://crates.io/crates/ether)
-![License](https://img.shields.io/crates/l/ether.svg)
+![License](https://img.shields.io/github/license/jtomschroeder/ether.svg)
 
 `ether` is a crate that provides a library parsing and manipulating network data, packet captures.
 
