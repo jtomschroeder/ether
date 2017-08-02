@@ -30,34 +30,37 @@ impl Default for Config {
     }
 }
 
-fn pselect(nfds: &File,
-           readfds: Option<&mut libc::fd_set>,
-           writefds: Option<&mut libc::fd_set>,
-           timeout: Option<Duration>)
-           -> io::Result<()> {
+fn pselect(
+    nfds: &File,
+    readfds: Option<&mut libc::fd_set>,
+    writefds: Option<&mut libc::fd_set>,
+    timeout: Option<Duration>,
+) -> io::Result<()> {
     let fd = nfds.as_raw_fd();
 
     let timeout = timeout.map(|d| {
-                                  libc::timespec {
-                                      tv_sec: d.as_secs() as libc::time_t,
-                                      tv_nsec: d.subsec_nanos() as libc::c_long,
-                                  }
-                              });
+        libc::timespec {
+            tv_sec: d.as_secs() as libc::time_t,
+            tv_nsec: d.subsec_nanos() as libc::c_long,
+        }
+    });
 
     let ret = unsafe {
-        libc::pselect(fd + 1,
-                      readfds
-                          .map(|to| to as *mut libc::fd_set)
-                          .unwrap_or(ptr::null_mut()),
-                      writefds
-                          .map(|to| to as *mut libc::fd_set)
-                          .unwrap_or(ptr::null_mut()),
-                      ptr::null_mut(),
-                      timeout
-                          .as_ref()
-                          .map(|to| to as *const libc::timespec)
-                          .unwrap_or(ptr::null()),
-                      ptr::null())
+        libc::pselect(
+            fd + 1,
+            readfds.map(|to| to as *mut libc::fd_set).unwrap_or(
+                ptr::null_mut(),
+            ),
+            writefds.map(|to| to as *mut libc::fd_set).unwrap_or(
+                ptr::null_mut(),
+            ),
+            ptr::null_mut(),
+            timeout
+                .as_ref()
+                .map(|to| to as *const libc::timespec)
+                .unwrap_or(ptr::null()),
+            ptr::null(),
+        )
     };
 
     match ret {
@@ -79,15 +82,10 @@ impl Tap {
         fn open() -> io::Result<File> {
             // On macOS: bpf exposed as /dev/bpf###
             for entry in glob("/dev/bpf*").expect("Failed to read glob pattern") {
-                if let Some(file) = entry
-                       .ok()
-                       .and_then(|path| {
-                                     OpenOptions::new()
-                                         .read(true)
-                                         .write(true)
-                                         .open(&path)
-                                         .ok()
-                                 }) {
+                if let Some(file) = entry.ok().and_then(|path| {
+                    OpenOptions::new().read(true).write(true).open(&path).ok()
+                })
+                {
                     return Ok(file);
                 }
             }
@@ -103,7 +101,7 @@ impl Tap {
 
             let mut iface: bpf::ifreq = unsafe { mem::zeroed() };
             for (i, c) in interface.bytes().enumerate() {
-                iface.ifr_name[i] = c as i8;
+                iface.ifr_name[i] = c as std::os::raw::c_char;
             }
 
             // Set the buffer length
@@ -133,6 +131,7 @@ impl Tap {
                 }
             }
 
+            /*
             {
                 use super::bindings::bpf::*;
 
@@ -149,13 +148,16 @@ impl Tap {
                 //                         BPF_STMT(BPF_RET + BPF_K, std::u32::MAX),
                 //                         BPF_STMT(BPF_RET + BPF_K, 0)];
 
-                ioctl!(fd,
-                       BIOCSETF,
-                       &bpf_program {
-                            bf_len: instructions.len() as u32,
-                            bf_insns: instructions.as_ptr(),
-                        });
+                ioctl!(
+                    fd,
+                    BIOCSETF,
+                    &bpf_program {
+                        bf_len: instructions.len() as u32,
+                        bf_insns: instructions.as_ptr(),
+                    }
+                );
             }
+            */
 
             // Enable nonblocking
             fcntl!(fd, libc::F_SETFL, libc::O_NONBLOCK);
@@ -170,10 +172,10 @@ impl Tap {
         }
 
         Ok(Tap {
-               fd_set: fd_set,
-               config: config,
-               file: file,
-           })
+            fd_set: fd_set,
+            config: config,
+            file: file,
+        })
     }
 
     pub fn stream(&mut self) -> Stream {
@@ -226,9 +228,10 @@ impl<'a> futures::stream::Stream for Stream<'a> {
                     let packet: *const bpf::bpf_hdr = mem::transmute(ptr);
 
                     let start = ptr as isize + (*packet).bh_hdrlen as isize -
-                                buffer.as_ptr() as isize;
-                    self.packets
-                        .push_back((start as usize, (*packet).bh_caplen as usize));
+                        buffer.as_ptr() as isize;
+                    self.packets.push_back(
+                        (start as usize, (*packet).bh_caplen as usize),
+                    );
 
                     let offset = (*packet).bh_hdrlen as isize + (*packet).bh_caplen as isize;
                     ptr = ptr.offset(bpf::BPF_WORDALIGN(offset));
@@ -237,10 +240,12 @@ impl<'a> futures::stream::Stream for Stream<'a> {
         }
 
         let buffer = &self.buffer[..];
-        Ok(self.packets
-               .pop_front()
-               .map(move |(start, len)| Vec::from(&buffer[start..start + len]))
-               .into())
+        Ok(
+            self.packets
+                .pop_front()
+                .map(move |(start, len)| Vec::from(&buffer[start..start + len]))
+                .into(),
+        )
     }
 }
 

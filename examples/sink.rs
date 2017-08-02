@@ -3,7 +3,6 @@ extern crate ether;
 use ether::tap;
 
 fn main() {
-    // let mut tap = tap::Tap::new("en0").unwrap();
     let mut tap = tap::Tap::new("lo0").unwrap();
 
     let mut sink = tap.sink();
